@@ -1,0 +1,2 @@
+# Business_analysis_projects
+churn_prediction, credit_risk, anormaly_detection
