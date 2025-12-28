@@ -1,1 +1,13 @@
+import numpy as np
+from sklearn.ensemble import IsolationForest
 
+X = np.array([
+    [100, 1],
+    [120, 1],
+    [110, 1],
+    [10000, 5]  # anomaly])
+
+model = IsolationForest(contamination=0.1)
+model.fit(X)
+predictions = model.predict(X)
+predictions
