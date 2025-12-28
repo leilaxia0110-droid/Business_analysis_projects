@@ -1,13 +1,119 @@
+## Fraud Detection (Anomaly Detection)
+
+This project builds a simple fraud detection system using:
+Logistic Regression
+Random Forest
+SMOTE for class imbalance
+
+### Key Techniques
+Feature scaling & one-hot encoding
+Imbalanced classification handling
+ROC-AUC evaluation
+
+# fraud_detection.py
+"""
+Simple Fraud Detection (Anomaly Detection)
+Author: Your Name
+"""
+
 import numpy as np
-from sklearn.ensemble import IsolationForest
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from imblearn.over_sampling import SMOTE
 
-X = np.array([
-    [100, 1],
-    [120, 1],
-    [110, 1],
-    [10000, 5]  # anomaly])
 
-model = IsolationForest(contamination=0.1)
-model.fit(X)
-predictions = model.predict(X)
-predictions
+# 1. Load / Create Data
+
+def load_data():
+    np.random.seed(42)
+    n = 50000
+
+    data = pd.DataFrame({
+        "purchase_value": np.random.exponential(100, n),
+        "age": np.random.randint(18, 70, n),
+        "source": np.random.choice(["SEO", "Ads", "Direct"], n),
+        "browser": np.random.choice(["Chrome", "Firefox", "Safari"], n),
+        "hour": np.random.randint(0, 24, n),
+        "is_fraud": np.random.choice([0, 1], n, p=[0.985, 0.015])})
+
+    # fraud pattern
+    fraud_idx = data[data["is_fraud"] == 1].index
+    data.loc[fraud_idx, "purchase_value"] *= 3
+
+    return data
+
+
+# 2. Preprocessing
+
+def preprocess(data):
+    X = data.drop("is_fraud", axis=1)
+    y = data["is_fraud"]
+
+    num_features = ["purchase_value", "age", "hour"]
+    cat_features = ["source", "browser"]
+
+    preprocessor = ColumnTransformer([
+        ("num", StandardScaler(), num_features),
+        ("cat", OneHotEncoder(handle_unknown="ignore"), cat_features)])
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, stratify=y, random_state=42)
+
+    # handle imbalance
+    smote = SMOTE(sampling_strategy=0.1, random_state=42)
+    X_train, y_train = smote.fit_resample(X_train, y_train)
+
+    return X_train, X_test, y_train, y_test, preprocessor
+
+
+# 3. Train Models
+
+def train_models(X_train, X_test, y_train, y_test, preprocessor):
+    models = {
+        "Logistic Regression": LogisticRegression(max_iter=1000),
+        "Random Forest": RandomForestClassifier(
+            n_estimators=100,
+            max_depth=8,
+            class_weight="balanced",
+            random_state=42)}
+
+    results = {}
+
+    for name, model in models.items():
+        pipe = Pipeline([
+            ("prep", preprocessor),
+            ("model", model)
+        ])
+
+        pipe.fit(X_train, y_train)
+
+        y_prob = pipe.predict_proba(X_test)[:, 1]
+        auc = roc_auc_score(y_test, y_prob)
+
+        print(f"\n{name}")
+        print("ROC-AUC:", round(auc, 3))
+        print(classification_report(y_test, pipe.predict(X_test)))
+
+        results[name] = pipe
+
+    return results
+
+
+# 4. Main
+
+def main():
+    data = load_data()
+    X_train, X_test, y_train, y_test, preprocessor = preprocess(data)
+    models = train_models(X_train, X_test, y_train, y_test, preprocessor)
+
+    return models
+
+
+if __name__ == "__main__":
+    models = main()
