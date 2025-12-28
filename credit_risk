@@ -1,13 +1,119 @@
+## Credit Risk Analysis
+Loan default prediction using machine learning.
+
+### Techniques
+Logistic Regression & Random Forest
+Class imbalance handling with SMOTE
+Feature scaling & one-hot encoding via Pipelines
+ROC-AUC as primary evaluation metric
+
+### Run
+```bash
+python credit_risk_analysis.py
+
+# credit_risk_analysis.py
+"""
+Credit Risk Analysis - Loan Default Prediction
+"""
+
+import numpy as np
 import pandas as pd
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from imblearn.over_sampling import SMOTE
+import joblib
 
-data = pd.DataFrame({
-    "income": [50000, 80000, 30000],
-    "debt_ratio": [0.2, 0.1, 0.6],
-    "credit_history": [5, 10, 2],
-    "default": [0, 0, 1]})
 
-X = data[["income", "debt_ratio", "credit_history"]]
-y = data["default"]
-model = DecisionTreeClassifier()
-model.fit(X, y)
+# 1. Load Data
+
+def load_data():
+    df = pd.read_csv("loan-clean-version.csv")
+    print("Data loaded:", df.shape)
+    return df
+
+
+# 2. Preprocessing
+
+def preprocess(df):
+    # binary target: 1 = default, 0 = fully paid
+    df = df[df["loan_status"].isin(["Fully Paid", "Charged Off"])]
+    df["loan_status"] = df["loan_status"].map({
+        "Fully Paid": 0,
+        "Charged Off": 1})
+
+    y = df["loan_status"]
+    X = df.drop("loan_status", axis=1)
+
+    num_features = X.select_dtypes(include=np.number).columns
+    cat_features = X.select_dtypes(include="object").columns
+
+    preprocessor = ColumnTransformer([
+        ("num", StandardScaler(), num_features),
+        ("cat", OneHotEncoder(handle_unknown="ignore"), cat_features)])
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.25, stratify=y, random_state=42)
+
+    # handle imbalance
+    smote = SMOTE(sampling_strategy=0.2, random_state=42)
+    X_train, y_train = smote.fit_resample(X_train, y_train)
+
+    return X_train, X_test, y_train, y_test, preprocessor
+
+
+# 3. Train Models
+
+def train_models(X_train, X_test, y_train, y_test, preprocessor):
+    models = {
+        "Logistic Regression": LogisticRegression(
+            max_iter=1000,
+            class_weight="balanced"
+        ),
+        "Random Forest": RandomForestClassifier(
+            n_estimators=200,
+            max_depth=10,
+            class_weight="balanced",
+            random_state=42)}
+
+    results = {}
+
+    for name, model in models.items():
+        pipe = Pipeline([
+            ("prep", preprocessor),
+            ("model", model)])
+
+        pipe.fit(X_train, y_train)
+        y_prob = pipe.predict_proba(X_test)[:, 1]
+
+        auc = roc_auc_score(y_test, y_prob)
+
+        print(f"\n{name}")
+        print("ROC-AUC:", round(auc, 3))
+        print(classification_report(y_test, pipe.predict(X_test)))
+
+        results[name] = (pipe, auc)
+
+    return results
+
+
+# 4. Main
+
+def main():
+    df = load_data()
+    X_train, X_test, y_train, y_test, preprocessor = preprocess(df)
+    results = train_models(X_train, X_test, y_train, y_test, preprocessor)
+
+    # save best model
+    best_model = max(results.items(), key=lambda x: x[1][1])[1][0]
+    joblib.dump(best_model, "best_credit_risk_model.pkl")
+    print("\nBest model saved as best_credit_risk_model.pkl")
+
+
+if __name__ == "__main__":
+    main()
+
