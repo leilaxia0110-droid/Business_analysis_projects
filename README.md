@@ -29,3 +29,18 @@ python credit_risk_analysis.py
 Credit Risk Analysis - Loan Default Prediction
 """
 
+## Fraud Detection (Anomaly Detection)
+This project builds a simple fraud detection system using:
+Logistic Regression
+Random Forest
+SMOTE for class imbalance
+### Key Techniques
+Feature scaling & one-hot encoding
+Imbalanced classification handling
+ROC-AUC evaluation
+# fraud_detection.py
+"""
+Simple Fraud Detection (Anomaly Detection)
+Author: Your Name
+"""
+
