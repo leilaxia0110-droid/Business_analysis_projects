@@ -13,3 +13,19 @@ Random Forest achieved the best overall performance after hyperparameter tuning.
 ## Output
 ROC curve comparison
 Saved best model
+
+## Credit Risk Analysis
+Loan default prediction using machine learning.
+### Techniques
+Logistic Regression & Random Forest
+Class imbalance handling with SMOTE
+Feature scaling & one-hot encoding via Pipelines
+ROC-AUC as primary evaluation metric
+### Run
+```bash
+python credit_risk_analysis.py
+# credit_risk_analysis.py
+"""
+Credit Risk Analysis - Loan Default Prediction
+"""
+
